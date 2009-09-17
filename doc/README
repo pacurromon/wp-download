@@ -1,0 +1,13 @@
+Documentation
+=============
+
+The documentation for wp-download is generated from rst files. You will
+have to install python-sphinx [1] if you want html or txt documentation.
+
+After that just call make with one of the following targets:
+
+    * all   - build html and txt
+    * text  - build txt documentation
+    * html  - build html documentation
+
+[1] http://sphinx.pocoo.org/
