@@ -32,3 +32,8 @@ from the `homepage <http://github.com/babilen/wp-download>`_.
 Requirements:
 
     * `progressbar <http://pypi.python.org/pypi/progressbar/2.2>`_
+
+Documentation
+-------------
+
+Documentation can be found `here <http://packages.python.org/wp-download/>`_
