@@ -33,7 +33,7 @@ run:
     $ tar xjf wp-download-0.1.tar.bz2
     # python setup.py install --prefix=/usr/local
 
-which will install wp-download within `/usr/local`. You will have to include
+which will install wp-download within `/usr/local`. You might have to include
 `/usr/local/bin` in your `$PATH`.
 
     $ export PATH=/usr/local/bin:$PATH
@@ -48,15 +48,20 @@ you already use it, or plan to do so you might be happy to hear that
 wp-download provides a pip [requirements file] [pipreq] that can be used to
 install wp-download and it's requirements.
 
-    # pip install -r requirements-0.1.txt
+You should *never* install software
+into /usr which is used by the package management system of your distribution.
 
-### pip and virtualenv
+But fear not! [virtualenv] [] and [pip] [] make it easy to install software
+like this into an completely isolated environment.
 
-[virtualenv] [] is a tool to create isolated Python environments.
+    # pip install -E wp-download -r requirements-0.1.txt
 
-    $ pip install -E wp-download wp-download
+## Documentation
+
+Documentation for wp-download can be found [here] [documentation]
 
 [pbar]: http://pypi.python.org/pypi/progressbar/
 [pip]: http://pip.openplans.org/
 [virtualenv]: http://pypi.python.org/pypi/virtualenv
 [pipreq]: /babilen/wp-download/tree/master/pip/requirements-0.1.txt
+[documentation]: http://packages.python.org/wp-download/
