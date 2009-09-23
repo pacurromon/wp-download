@@ -16,7 +16,7 @@ setup(name='wp-download',
       data_files=[
           ('share/doc/wp-download/examples/', ['examples/wpdownloadrc.sample']),
           ('share/doc/wp-download/doc', ['doc/Makefile','doc/README']),
-          ('share/doc/wp-download/doc/rst', ['doc/rst/wp-download.rst',
+          ('share/doc/wp-download/doc/rst', ['doc/rst/index.rst',
                                              'doc/rst/conf.py']),
       ],
       classifiers=[
