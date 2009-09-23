@@ -5,7 +5,7 @@ from distutils.core import setup
 import os
 
 setup(name='wp-download',
-      version='0.1',
+      version='0.1.1',
       description='Wikipedia database dump downloader',
       author='Wolodja Wentland',
       author_email='wentland@cl.uni-heidelberg.de',

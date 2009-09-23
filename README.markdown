@@ -54,7 +54,7 @@ into /usr which is used by the package management system of your distribution.
 But fear not! [virtualenv] [] and [pip] [] make it easy to install software
 like this into an completely isolated environment.
 
-    # pip install -E wp-download -r requirements-0.1.txt
+    # pip install -E wp-download -r requirements-0.1.1.txt
 
 ## Documentation
 
@@ -63,5 +63,5 @@ Documentation for wp-download can be found [here] [documentation]
 [pbar]: http://pypi.python.org/pypi/progressbar/
 [pip]: http://pip.openplans.org/
 [virtualenv]: http://pypi.python.org/pypi/virtualenv
-[pipreq]: /babilen/wp-download/tree/master/pip/requirements-0.1.txt
+[pipreq]: /babilen/wp-download/tree/master/pip/requirements-0.1.1.txt
 [documentation]: http://packages.python.org/wp-download/

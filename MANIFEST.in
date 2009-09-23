@@ -1,5 +1,6 @@
+include CHANGES
 include COPYING
-include README.markdown
 include INSTALL
+include README.markdown
 graft examples
 graft doc

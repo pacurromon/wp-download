@@ -1,0 +1,6 @@
+wp-download v0.1.1
+------------------
+
+* Use system default Python interpreter
+* Documentation
+* pylint clean
