@@ -1,5 +1,10 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
+"""
+wp-download
+
+This is a downloader for Wikipedia database dumps
+"""
 
 # © Copyright 2009 Wolodja Wentland. All Rights Reserved.
 
@@ -34,12 +39,11 @@ import string
 import datetime
 import progressbar
 import socket
-import functools
 
 from contextlib import nested, closing
 
 # the global logger
-log = logging.Logger('wp-download')
+LOG = logging.Logger('wp-download')
 
 # exit status
 
@@ -59,13 +63,15 @@ EPARSE = 7
 ENOENT = 8
 
 class DownloadError(Exception):
-    pass
+    """This error is raised if a download failed"""
 
 class ErrorLimit(logging.Filter):
     """Discard all records with a level higher or equal to
     logging.ERROR"""
 
     def filter(self, record):
+        """Filter log record by level"""
+
         if record.levelno < logging.ERROR:
             return True
         return False
@@ -76,39 +82,43 @@ class PartialDownloader(urllib.FancyURLopener):
     This error means a partial file is being sent, which is ok in this case.
     Do nothing with this error.
     """
-    def http_error_206(self, url, fp, errcode, errmsg, headers, data=None):
-        pass
+    def http_error_206(self, *args, **kw):
+        """This error is raised for partial downloads, which is exactly what
+        we expect for resumed ones."""
 
 def init_parser():
     """Initialise command line parser."""
 
     usage = 'Usage: %prog [options] DIR'
-    parser = optparse.OptionParser(usage)
+    new_parser = optparse.OptionParser(usage)
 
-    parser.add_option('-q', '--quiet',
-                      action='store_true', dest='quiet',
-                      default=False,
-                      help='do not generate output (only report errors)')
+    new_parser.add_option('-q', '--quiet',
+                          action='store_true', dest='quiet',
+                          default=False,
+                          help='do not generate output (only report errors)')
 
-    parser.add_option('-v', '--verbose',
-                      action='store_true', dest='verbose',
-                      default=False,
-                      help='generate verbose output')
+    new_parser.add_option('-v', '--verbose',
+                          action='store_true', dest='verbose',
+                          default=False,
+                          help='generate verbose output')
 
-    parser.add_option('-c', '--config', metavar='FILE',
-                      type='string',
-                      default = os.path.expanduser('~/.wpdownloadrc'),
-                      help='load configuration from FILE [default: %default]')
+    new_parser.add_option('-c', '--config', metavar='FILE',
+                          type='string',
+                          default = os.path.expanduser('~/.wpdownloadrc'),
+                          help='load configuration from FILE ' \
+                               '[default: %default]'
+                         )
 
-    parser.add_option('--version',
-                      action='store_true',
-                      default=False,
-                      help='display version')
+    new_parser.add_option('--version',
+                          action='store_true',
+                          default=False,
+                          help='display version')
 
     # Logging related options
 
-    log_options = optparse.OptionGroup(parser,
-        'Logging','Specify log file handling.')
+    log_options = optparse.OptionGroup(
+        new_parser, 'Logging','Specify log file handling.')
+
     log_level = ['DEBUG', 'INFO', 'WARNING', 'ERROR']
 
     log_options.add_option('--log-file', metavar='FILE',
@@ -119,18 +129,18 @@ def init_parser():
                            help='set log level (' +
                            ', '.join(log_level) +
                            ') [default: %default]',
-                       action='store', default='INFO',
-                       type='choice', choices=log_level)
-    parser.add_option_group(log_options)
+                           action='store', default='INFO',
+                           type='choice', choices=log_level)
+    new_parser.add_option_group(log_options)
 
     # Download related options
-    down_options = optparse.OptionGroup(parser,
-        'Download', 'Change download behaviour')
+    down_options = optparse.OptionGroup(
+        new_parser, 'Download', 'Change download behaviour')
 
     down_options.add_option('--force',
                             action='store_true', dest='force',
                             default=False,
-            help='Force download of all files.')
+                            help='Force download of all files.')
     down_options.add_option('--resume',
                             action='store_true', dest='resume',
                             default=False,
@@ -140,17 +150,17 @@ def init_parser():
                             type='int', dest='timeout',
                             default=30,
                             help='Set timeout for download in seconds '
-                                 '[default: %defaults]')
+                            '[default: %defaults]')
 
     down_options.add_option('--retries',
                             type='int', dest='retries',
                             default=3,
                             help='Set number of download attempts '
-                                 '[default: %default]')
+                            '[default: %default]')
 
-    parser.add_option_group(down_options)
+    new_parser.add_option_group(down_options)
 
-    return parser
+    return new_parser
 
 def init_logging(options):
     """Initialise logging framework
@@ -160,24 +170,36 @@ def init_logging(options):
     error = logging.StreamHandler(sys.stderr)
     error.setLevel(logging.ERROR)
     error.formatter = logging.Formatter('[%(levelname)s]: %(message)s')
-    log.addHandler(error)
+    LOG.addHandler(error)
 
     if not options.quiet and options.verbose:
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)
         console.formatter = logging.Formatter('%(message)s')
         console.addFilter(ErrorLimit())
-        log.addHandler(console)
+        LOG.addHandler(console)
 
     if options.log_file:
         log_file_handler = logging.FileHandler(
             options.log_file)
         log_file_handler.setLevel(
             logging.getLevelName(options.log_level))
-        log_file_handler.formatter = logging.Formatter('[%(levelname)s]: %(message)s')
-        log.addHandler(log_file_handler)
+        log_file_handler.formatter = logging.Formatter(
+            '[%(levelname)s]: %(message)s')
+        LOG.addHandler(log_file_handler)
 
-    log.debug('Logging initialised')
+    LOG.debug('Logging initialised')
+
+def init_progressbar(path, maxval):
+    """Initialise progressbar"""
+
+    widgets = [ os.path.basename(path), ' ',
+               progressbar.Bar(left='[', right=']', marker='*'), ' ',
+               progressbar.Percentage(), ' ', progressbar.ETA(),' ',
+               progressbar.FileTransferSpeed() ]
+
+    return progressbar.ProgressBar(widgets=widgets, maxval=maxval)
+
 
 class Configuration(ConfigParser.SafeConfigParser):
     """
@@ -201,15 +223,16 @@ class Configuration(ConfigParser.SafeConfigParser):
         """Parse the configuration file.
         """
         try:
-            with open(options.config) as fp:
-                self.readfp(fp)
-        except ConfigParser.ParsingError, pe:
-            log.error('Could not parse configuration file: %s'%(options.config))
-            critical_error(pe, EPARSE)
-        except IOError, ioe:
-            critical_error(ioe, EIO)
+            with open(self._options.config) as config_file:
+                self.readfp(config_file)
+        except ConfigParser.ParsingError, parse_err:
+            LOG.error('Could not parse configuration file: %s'%(
+                self._options.config))
+            critical_error(parse_err, EPARSE)
+        except IOError, io_err:
+            critical_error(io_err, EIO)
         else:
-            log.info('Read configuration from: %s'%(options.config))
+            LOG.info('Read configuration from: %s'%(self._options.config))
 
     def string_template(self, template_name):
         """Get a string template from the configuration file
@@ -218,14 +241,15 @@ class Configuration(ConfigParser.SafeConfigParser):
         :type template_name:    string
         """
 
-        log.debug('Read template: %s'%(template_name))
+        LOG.debug('Read template: %s'%(template_name))
 
         try:
             return string.Template(
                 self.get('Templates', template_name))
-        except KeyError, ke:
+        except KeyError, key_err:
             critical_error(
-                'Unknown placeholder in template %s: %s'%(template_name, ke),
+                'Unknown placeholder in template %s: %s'%(
+                    template_name, key_err),
                 ETEMPLATE
             )
 
@@ -245,19 +269,9 @@ class WPDownloader(object):
         self._config = Configuration(options)
         self._urlhandler = URLHandler(self._config)
 
-        log.info('Set timeout to %ds'%(options.timeout))
+        LOG.info('Set timeout to %ds'%(options.timeout))
 
         socket.setdefaulttimeout(options.timeout)
-
-    def _progressbar(self, path, maxval):
-        """Initialise progressbar"""
-
-        widgets = [ os.path.basename(path), ' ',
-                   progressbar.Bar(left='[', right=']', marker='*'), ' ',
-                   progressbar.Percentage(), ' ', progressbar.ETA(),' ',
-                   progressbar.FileTransferSpeed() ]
-
-        return progressbar.ProgressBar(widgets=widgets, maxval=maxval)
 
     def _download_directory(self, language, path):
         """Get download directory for given language at path"""
@@ -266,7 +280,7 @@ class WPDownloader(object):
                 self._urlhandler.latest_dump_date(
                     language).strftime('%Y%m%d'))
 
-    def _create_download_dirs(self,language, path):
+    def _create_download_dirs(self, language, path):
         """Create directories for given language
 
         :param path:    Path where directories should be created
@@ -278,7 +292,7 @@ class WPDownloader(object):
         down_dir = self._download_directory(language, path)
 
         if not os.path.exists(down_dir):
-            log.info('Creating directory: %s'%(down_dir))
+            LOG.info('Creating directory: %s'%(down_dir))
             os.makedirs(down_dir)
 
 
@@ -288,14 +302,14 @@ class WPDownloader(object):
         try:
             return sorted((l for l in self._config.options('Languages')
                      if self._config.getboolean('Languages', l)))
-        except ConfigParser.Error, cpe:
+        except ConfigParser.Error, cp_err:
             critical_error(
-                '%s in file: %s'%(cpe, self._options.config),
+                '%s in file: %s'%(cp_err, self._options.config),
                 EPARSE
             )
-        except ValueError, ve:
+        except ValueError, val_err:
             critical_error(
-                'Wrong value (%s) in section [Languages]'%(ve),
+                'Wrong value (%s) in section [Languages]'%(val_err),
                 ELANGUAGE
             )
 
@@ -307,10 +321,12 @@ class WPDownloader(object):
             try:
                 self.retrieve_file(url, file_path)
             except DownloadError:
-                log.error('DownloadError: %s'%(os.path.basename(url)))
+                LOG.error('DownloadError: %s'%(os.path.basename(url)))
                 continue
 
     def retrieve_file(self, url, path):
+        """Retrieve a single file"""
+
         downloader = urllib.FancyURLopener()
         offset = 0
 
@@ -325,12 +341,12 @@ class WPDownloader(object):
                 if ((remote_file_size == local_file_size)
                     and not self._options.force):
 
-                    log.info('Skip: %s'%(os.path.basename(path)))
+                    LOG.info('Skip: %s'%(os.path.basename(path)))
                     return
 
                 elif ((remote_file_size >= local_file_size)
                       and self._options.resume):
-                    log.info('Resume: %s'%(os.path.basename(path)))
+                    LOG.info('Resume: %s'%(os.path.basename(path)))
                     offset = local_file_size
 
         retries = 0
@@ -343,11 +359,11 @@ class WPDownloader(object):
             try:
                 self.retrieve(url, path, offset)
             except socket.error, s_err:
-                log.error('Socket Error: %s'%(s_err))
+                LOG.error('Socket Error: %s'%(s_err))
                 retries += 1
                 offset = 0
             except IOError, io_err:
-                log.error(io_err)
+                LOG.error(io_err)
                 retries += 1
                 offset = 0
             else:
@@ -373,7 +389,7 @@ class WPDownloader(object):
 
             try:
                 if not self._options.quiet:
-                    pbar = self._progressbar(local_path, content_length)
+                    pbar = init_progressbar(local_path, content_length)
                     pbar.start()
 
                 while True:
@@ -386,7 +402,8 @@ class WPDownloader(object):
                     read += len(data)
 
                     if read > content_length:
-                        raise DownloadError('Received data exceeds advertised size!')
+                        raise DownloadError(
+                            'Received data exceeds advertised size!')
 
                     if not self._options.quiet:
                         pbar.update(read)
@@ -406,13 +423,13 @@ class WPDownloader(object):
         """Download files for all enabled languages"""
 
         for lang in self.enabled_languages():
-            log.info('Processing language: %s'%lang)
+            LOG.info('Processing language: %s'%lang)
 
             try:
                 self.download_language(lang, path)
-            except IOError, io_err:
-                log.error('Download failed: %s'%(lang))
-                log.error('Skipped: %s'%(lang))
+            except IOError:
+                LOG.error('Download failed: %s'%(lang))
+                LOG.error('Skipped: %s'%(lang))
                 continue
 
 class URLHandler(object):
@@ -445,14 +462,14 @@ class URLHandler(object):
         try:
             return (f for f in self._config.options('Files')
                      if self._config.getboolean('Files', f))
-        except ConfigParser.Error, cpe:
+        except ConfigParser.Error, cp_err:
             critical_error(
-                '%s in file: %s'%(cpe, self._options.config),
+                '%s in file(s): %s'%(cp_err, self._config.options('Files')),
                 EPARSE
             )
-        except ValueError, ve:
+        except ValueError, val_err:
             critical_error(
-                'Wrong value (%s) in section [Files]'%(ve),
+                'Wrong value (%s) in section [Files]'%(val_err),
                 ECONFFILES
             )
 
@@ -476,12 +493,12 @@ class URLHandler(object):
         """
 
         try:
-            with closing(self._urlopener.open(url)) as fp:
+            with closing(self._urlopener.open(url)) as lang_site:
                 return ( datetime.datetime.strptime(date, '%Y%m%d') for date in
-                         self._date_matcher.findall(fp.read()))
+                         self._date_matcher.findall(lang_site.read()))
         except IOError, io_err:
-            log.error(io_err)
-            log.error('Could not retrieve: %s'%(url))
+            LOG.error(io_err)
+            LOG.error('Could not retrieve: %s'%(url))
             raise io_err
 
     def latest_dump_date(self, language):
@@ -511,12 +528,12 @@ class URLHandler(object):
         try:
             latest = self.latest_dump_date(language)
         except IOError, io_err:
-            log.error('Could not get dump date for %s!'%(language))
-            log.error('Skip: %s'%(language))
-            log.error(io_err)
+            LOG.error('Could not get dump date for %s!'%(language))
+            LOG.error('Skip: %s'%(language))
+            LOG.error(io_err)
             yield
 
-        log.info('Latest dump for (%s) is from %s'%(language,
+        LOG.info('Latest dump for (%s) is from %s'%(language,
                  latest.strftime('%A %d %B %Y')))
 
         for filename in self._enabled_files():
@@ -529,37 +546,40 @@ class URLHandler(object):
                         filename=filename,
                         filetype=self._config.get('Filetypes', filename))])
 
-            scheme, netloc, path, qs, anchor = urlparse.urlsplit(self._host)
-            yield urlparse.urlunsplit((scheme, netloc, server_path, qs, anchor))
+            scheme, netloc, path, query, anchor = urlparse.urlsplit(
+                self._host)
+            yield urlparse.urlunsplit((scheme, netloc, server_path, query,
+                                       anchor))
 
 def critical_error(msg, exit_code):
-    log.error(msg)
+    """Terminate program with given exit code"""
+    LOG.error(msg)
     sys.exit(exit_code)
 
 if __name__ == '__main__':
-    try:
-        parser = init_parser()
-        (options, args) = parser.parse_args()
-        init_logging(options)
 
-        if options.version:
-            print 'wp-download version %s\n%s'%(__version__, __copyright__)
+    try:
+        PARSER = init_parser()
+        (OPTIONS, ARGS) = PARSER.parse_args()
+        init_logging(OPTIONS)
+
+        if OPTIONS.version:
+            print 'wp-download version %s\n%s' % (__version__, __copyright__)
             sys.exit(0)
 
-        if not args:
-            print parser.get_usage()
+        if not ARGS:
+            print PARSER.get_usage()
             critical_error(
                 'Missing argument (download directory)',
                 EARGUMENT
             )
 
-        download_path = os.path.abspath(args[0])
+        DOWNLOAD_PATH = os.path.abspath(ARGS[0])
 
-        wpd = WPDownloader(options)
-        wpd.download_all_languages(download_path)
+        WP_DOWN = WPDownloader(OPTIONS)
+        WP_DOWN.download_all_languages(DOWNLOAD_PATH)
 
     except KeyboardInterrupt:
-        log.warning('Interrupted by user!')
-        pass
+        LOG.warning('Interrupted by user!')
     finally:
         logging.shutdown()
