@@ -150,8 +150,24 @@ wp-download to resume interrupted downloads by calling it with the
     swwiki-20090821-pages-articles.xml.bz2 [****] 100% Time: 00:00:00   3.19 M/s
     ...
     ...
-    Installation <install>
-    Usage <usage>
+
+Exit Status
+===========
+
+To ease scripting and automatic monitoring of wp-download the following exit
+status values are used:
+
+=========== =========================================================
+Exit status Meaning
+=========== =========================================================
+2           Wrong or missing argument
+3           IO error
+4           Error in template definition
+5           Error in files definition
+6           Language code error
+7           Error parsing the configuration file
+8           No such file or directory
+=========== =========================================================
 
 .. Indices and tables
 .. ==================
